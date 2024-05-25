@@ -94,6 +94,14 @@ app.post('/create-wallet', (req, res) => {
   res.json(newWallet);
 });
 
+// Endpoint to get user current wallet
+app.post('/get-user-current-wallet', (req, res) => {
+  const { userId } = req.body;
+  const walletAddress = readUserCurrentWallet(userId);
+
+  res.json(walletAddress);
+});
+
 // Endpoint to roll dice
 app.post('/roll-dice', (req, res) => {
   const { isPaid, userId } = req.body;

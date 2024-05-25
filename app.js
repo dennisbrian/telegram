@@ -48,7 +48,7 @@ bot.on('message', (msg) => {
       showReferral(chatId);
       break;
     case 'Deposit':
-      handleDeposit(chatId);
+      handleDeposit(chatId, userId);
       break;
     case 'Home':
     case 'Back':
@@ -144,13 +144,20 @@ async function showReferral(chatId) {
 }
 
 // Function to handle deposits
-function handleDeposit(chatId, walletAddress) {
-  bot.sendMessage(chatId, `Please deposit to the following address: ${walletAddress}`, {
-    reply_markup: {
-      keyboard: [['Copy address']],
-      one_time_keyboard: true,
-    },
-  });
+async function handleDeposit(chatId, userId) {
+  try {
+    const response = await axios.post(`${API_ENDPOINT}/get-user-current-wallet`, { userId });
+    const walletAddress = response.data;
+
+    bot.sendMessage(chatId, `Please deposit to the following address: ${walletAddress}`, {
+      reply_markup: {
+        keyboard: [['Home']],
+        one_time_keyboard: true,
+      },
+    });
+  } catch (error) {
+    bot.sendMessage(chatId, 'Error fetching wallet address. Please try again.');
+  }
 }
 
 async function home(chatId) {
