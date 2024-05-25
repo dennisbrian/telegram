@@ -1,0 +1,12 @@
+# Ignore node_modules directory
+node_modules/
+
+# Ignore npm's debug log
+npm-debug.log
+
+# Ignore .env file (contains sensitive data, like API keys)
+.env
+
+# Ignore generated files (you may have other build tools)
+dist/
+build/
