@@ -21,6 +21,7 @@ bot.onText(/\/start/, (msg) => {
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
+  const userId = msg.from.id;
 
   switch (text) {
     case 'Free Dice':
@@ -30,16 +31,18 @@ bot.on('message', (msg) => {
       showBuyDiceMenu(chatId);
       break;
     case 'New wallet':
-      createNewWallet(chatId);
+      createNewWallet(chatId, userId);
       break;
     case 'Connect wallet':
-      connectWallet(chatId);
+      connectWallet(chatId, userId);
       break;
     case 'Throw dice':
-      throwDice(chatId, false); // false for free dice
+    case 'Throw again (free)':
+      throwDice(chatId, false, userId); // false for free dice
       break;
     case 'Roll dice':
-      throwDice(chatId, true); // true for paid dice
+    case 'Throw again':
+      throwDice(chatId, true, userId); // true for paid dice
       break;
     case 'Referral':
       showReferral(chatId);
@@ -57,9 +60,9 @@ bot.on('message', (msg) => {
 });
 
 // Function to create a new wallet
-async function createNewWallet(chatId) {
+async function createNewWallet(chatId, userId) {
   try {
-    const response = await axios.post(`${API_ENDPOINT}/create-wallet`);
+    const response = await axios.post(`${API_ENDPOINT}/create-wallet`, { userId });
     const walletData = response.data;
 
     bot.sendMessage(chatId, `Wallet created!\nAddress: ${walletData.address}\nSeed: ${walletData.seed}\nBalance: ${walletData.balance}`, {
@@ -94,24 +97,31 @@ function showBuyDiceMenu(chatId) {
 }
 
 // Function to connect an existing wallet
-function connectWallet(chatId) {
+function connectWallet(chatId, userId) {
   bot.sendMessage(chatId, 'Please enter your wallet details to connect.');
   // Additional logic to handle wallet connection can be implemented here
 }
 
 // Function to handle dice rolls
-async function throwDice(chatId, isPaid) {
+async function throwDice(chatId, isPaid, userId) {
   try {
-    const response = await axios.post(`${API_ENDPOINT}/roll-dice`, { isPaid });
+    const response = await axios.post(`${API_ENDPOINT}/roll-dice`, { isPaid, userId });
     const diceResult = response.data;
 
     bot.sendMessage(chatId, `Dice rolled! You got ${diceResult.value}. You earned ${diceResult.tokenAmount} $SANTI tokens.`, {
       reply_markup: {
-        keyboard: [['Throw again', 'Referral', 'Home']],
+        keyboard: [['Throw again' + (isPaid ? '' : ' (free)'), 'Referral', 'Home']],
         one_time_keyboard: true,
       },
     });
   } catch (error) {
+    bot.sendMessage(chatId, error.response.data.error, {
+      reply_markup: {
+        keyboard: [['Throw again' + (isPaid ? '' : ' (free)'), 'Referral', 'Home']],
+        one_time_keyboard: true,
+      },
+    });
+    return;
     bot.sendMessage(chatId, 'Error rolling dice. Please try again.');
   }
 }

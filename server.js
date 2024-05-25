@@ -11,6 +11,7 @@ app.use(express.json());
 
 // In-memory data store (this can be replaced with a database)
 let wallets = {}; // key: walletAddress, value: { address, seed, balance }
+let user_wallet = {}; // key: userId, value: address
 let diceRollHistory = [];
 let referrals = {
   link: 'http://localhost:3000/referral-link/',
@@ -31,46 +32,96 @@ const loadWalletsFromFile = () => {
   }
 };
 
+// Initialize user wallets JSON file with an empty object if it's empty
+function initializeUserWalletsFile() {
+  if (!fs.existsSync(path.join(__dirname, 'data', 'user_wallet.json'))) {
+    fs.writeFileSync(path.join(__dirname, 'data', 'user_wallet.json'), JSON.stringify({}));
+  }
+}
+
+// Read user wallet from the JSON file
+function readUserCurrentWallet(userId) {
+  try {
+    const data = fs.readFileSync(path.join(__dirname, 'data', 'user_wallet.json'), 'utf8');
+    const userWallets = JSON.parse(data);
+    return userWallets[userId] || null;
+  } catch (err) {
+    console.error('Error reading user wallets file:', err);
+    return null;
+  }
+}
+
+// Read user wallets from the JSON file
+function readUserCurrentWallets() {
+  try {
+    const data = fs.readFileSync(path.join(__dirname, 'data', 'user_wallet.json'), 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Error reading user wallets file:', err);
+    return {};
+  }
+}
+
+// Write user wallet to the JSON file
+function writeUserCurrentWallet(userId, walletId) {
+  try {
+    const userWallets = readUserCurrentWallets();
+    userWallets[userId] = walletId;
+    fs.writeFileSync(path.join(__dirname, 'data', 'user_wallet.json'), JSON.stringify(userWallets, null, 2));
+  } catch (err) {
+    console.error('Error writing user wallets file:', err);
+  }
+}
+
 // Load wallets from file at startup
 loadWalletsFromFile();
+initializeUserWalletsFile();
 
 // Endpoint to create a wallet
 app.post('/create-wallet', (req, res) => {
+  const { userId } = req.body;
   const newWallet = {
     address: uuidv4(), // Generate a unique wallet address
     seed: uuidv4(), // Generate a unique seed phrase
-    balance: 0
+    balance: 0,
+    userId: userId,
   };
 
   wallets[newWallet.address] = newWallet;
   saveWalletsToFile();
+  writeUserCurrentWallet(userId, newWallet.address);
 
   res.json(newWallet);
 });
 
 // Endpoint to roll dice
 app.post('/roll-dice', (req, res) => {
-  const { isPaid, address } = req.body;
+  const { isPaid, userId } = req.body;
 
-  if (!wallets[address]) {
+  const address = readUserCurrentWallet(userId);
+
+  if (isPaid && !wallets[address]) {
     return res.status(400).json({ error: 'Wallet not found' });
   }
 
   const diceValue = Math.floor(Math.random() * 6) + 1;
   const tokenAmount = diceValue * (isPaid ? 10 : 1);
+  var balance = 0;
 
   if (isPaid) {
+    loadWalletsFromFile(); // refresh data before checking balance
     if (wallets[address].balance < 10) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
     wallets[address].balance -= 10; // Deduct paid dice cost
+    wallets[address].balance += tokenAmount; // Add earned tokens
+    saveWalletsToFile();
+
+    diceRollHistory.push({ address, value: diceValue, tokenAmount });
+    balance = wallets[address].balance;
   }
 
-  wallets[address].balance += tokenAmount; // Add earned tokens
-  saveWalletsToFile();
-
-  diceRollHistory.push({ address, value: diceValue, tokenAmount });
-  res.json({ value: diceValue, tokenAmount, balance: wallets[address].balance });
+  res.json({ value: diceValue, tokenAmount, balance: balance });
 });
 
 // Endpoint to get referral info
