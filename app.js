@@ -44,6 +44,13 @@ bot.on('message', (msg) => {
     case 'Referral':
       showReferral(chatId);
       break;
+    case 'Deposit':
+      handleDeposit(chatId);
+      break;
+    case 'Home':
+    case 'Back':
+      home(chatId);
+      break;
     default:
       bot.sendMessage(chatId, 'Please choose a valid option.');
   }
@@ -134,4 +141,18 @@ function handleDeposit(chatId, walletAddress) {
       one_time_keyboard: true,
     },
   });
+}
+
+async function home(chatId) {
+  try {
+    bot.sendMessage(chatId, 'Welcome! Choose an option:', {
+      reply_markup: {
+        keyboard: [['Free Dice', 'Buy Dice']],
+        one_time_keyboard: true,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    bot.sendMessage(chatId, 'Please try again.');
+  }
 }
