@@ -55,7 +55,11 @@ bot.on('message', (msg) => {
       home(chatId);
       break;
     default:
-      bot.sendMessage(chatId, 'Please choose a valid option.');
+      if (text.split(':')[0] == 'Wallet') {
+        walletChosen(chatId, userId, text.split(':')[1].trim());
+      } else {
+        bot.sendMessage(chatId, 'Please choose a valid option.');
+      }
   }
 });
 
@@ -96,10 +100,36 @@ function showBuyDiceMenu(chatId) {
   });
 }
 
+// Helper function to split array into chunks
+function chunkArray(array, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+// Function to append string to each element in an array
+function appendStringToArray(array, appendString) {
+  return array.map(element => appendString + element);
+}
+
 // Function to connect an existing wallet
-function connectWallet(chatId, userId) {
-  bot.sendMessage(chatId, 'Please enter your wallet details to connect.');
-  // Additional logic to handle wallet connection can be implemented here
+async function connectWallet(chatId, userId) {
+  try {
+    const response = await axios.post(`${API_ENDPOINT}/get-user-current-wallets`, { userId });
+    const walletAddresses = response.data;
+    const walletChunks = chunkArray(appendStringToArray(walletAddresses, 'Wallet: '), 3);
+
+    bot.sendMessage(chatId, `Choose a wallet to continue:`, {
+      reply_markup: {
+        keyboard: walletChunks,
+        one_time_keyboard: true,
+      },
+    });
+  } catch (error) {
+    bot.sendMessage(chatId, 'Error fetching wallet address. Please try again.');
+  }
 }
 
 // Function to handle dice rolls
@@ -171,5 +201,22 @@ async function home(chatId) {
   } catch (error) {
     console.log(error);
     bot.sendMessage(chatId, 'Please try again.');
+  }
+}
+
+// Function after picking wallet
+async function walletChosen(chatId, userId, walletAddress) {
+  try {
+    const response = await axios.post(`${API_ENDPOINT}/choose-wallet`, { userId, walletAddress });
+    const walletData = response.data;
+
+    bot.sendMessage(chatId, `Wallet chosen!\nAddress: ${walletData.address}\nSeed: ${walletData.seed}\nBalance: ${walletData.balance}`, {
+      reply_markup: {
+        keyboard: [['Deposit', 'Roll dice', 'Home']],
+        one_time_keyboard: true,
+      },
+    });
+  } catch (error) {
+    bot.sendMessage(chatId, 'Error choosing wallet. Please try again.');
   }
 }

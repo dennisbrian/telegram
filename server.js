@@ -52,7 +52,20 @@ function readUserCurrentWallet(userId) {
 }
 
 // Read user wallets from the JSON file
-function readUserCurrentWallets() {
+function readUserCurrentWallets(userId) {
+  try {
+    const data = fs.readFileSync(path.join(__dirname, 'data', 'wallets.json'), 'utf8');
+    const wallets = JSON.parse(data);
+    // console.log(wallets);
+    return Object.keys(wallets).filter(w => wallets[w].userId === userId) || [];
+  } catch (err) {
+    console.error('Error reading user wallets file:', err);
+    return null;
+  }
+}
+
+// Read users wallets from the JSON file
+function readUsersCurrentWallets() {
   try {
     const data = fs.readFileSync(path.join(__dirname, 'data', 'user_wallet.json'), 'utf8');
     return JSON.parse(data);
@@ -65,7 +78,7 @@ function readUserCurrentWallets() {
 // Write user wallet to the JSON file
 function writeUserCurrentWallet(userId, walletId) {
   try {
-    const userWallets = readUserCurrentWallets();
+    const userWallets = readUsersCurrentWallets();
     userWallets[userId] = walletId;
     fs.writeFileSync(path.join(__dirname, 'data', 'user_wallet.json'), JSON.stringify(userWallets, null, 2));
   } catch (err) {
@@ -100,6 +113,28 @@ app.post('/get-user-current-wallet', (req, res) => {
   const walletAddress = readUserCurrentWallet(userId);
 
   res.json(walletAddress);
+});
+
+// Endpoint to get user current wallets
+app.post('/get-user-current-wallets', (req, res) => {
+  const { userId } = req.body;
+  const walletAddresses = readUserCurrentWallets(userId);
+
+  res.json(walletAddresses);
+});
+
+// Endpoint to get user current wallets
+app.post('/choose-wallet', (req, res) => {
+  const { userId, walletAddress } = req.body;
+  const wallet = wallets[walletAddress];
+
+  if (wallet.userId != userId) {
+    return res.status(400).json({ error: 'Wallet not found' });
+  }
+
+  writeUserCurrentWallet(userId, walletAddress);
+
+  res.json(wallet);
 });
 
 // Endpoint to roll dice
