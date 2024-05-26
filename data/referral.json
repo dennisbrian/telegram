@@ -1,0 +1,18 @@
+{
+  "links": {
+    "6sukvllu": "Someone",
+    "9kk5d506": "Jack Bong"
+  },
+  "users": {
+    "Someone": {
+      "link": "6sukvllu",
+      "referred_total": 3,
+      "rewards": 3
+    },
+    "Jack Bong": {
+      "link": "9kk5d506",
+      "referred_total": 0,
+      "rewards": 0
+    }
+  }
+}

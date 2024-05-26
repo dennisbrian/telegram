@@ -13,12 +13,7 @@ app.use(express.json());
 let wallets = {}; // key: walletAddress, value: { address, seed, balance }
 let user_wallet = {}; // key: userId, value: address
 let diceRollHistory = [];
-let referrals = {
-  link: 'http://localhost:3000/referral-link/',
-  referredUsers: 0,
-  totalRewards: 0,
-  users: [] // List of users who referred others
-};
+const botUsername = "TELEGRAM_BOT_USERNAME"
 
 // Utility function to save wallets to a file (simulate database)
 const saveWalletsToFile = () => {
@@ -168,25 +163,102 @@ app.post('/roll-dice', (req, res) => {
 });
 
 // Endpoint to get referral info
-app.get('/referral', (req, res) => {
-  res.json(referrals);
+app.get('/referral', async (req, res) => {
+  try {
+    // Get the chatId parameter from the request query
+    const chatId = req.query.username;
+
+    // Read the referral data from the JSON file
+    const referralData = readReferralData();
+
+    // Check if the chatId exists in the referral data
+    if (referralData.users[chatId.toString()]) {
+      let data = referralData.users[chatId.toString()];
+      data.link = `https://t.me/${botUsername}?start=${data.link}`;
+      res.json({ data });
+    } else {
+      // If the user does not exist, create a new record with default values
+      const referralLink = generateReferralLink();
+      referralData.users[chatId] = {
+        link: referralLink,
+        referred_total: 0,
+        rewards: 0
+      };
+      referralData.links[referralLink] = chatId; // Generate mapping
+      writeReferralData(referralData);
+
+      data = referralData.users[chatId.toString()]
+      data.link = `https://t.me/${botUsername}?start=${data.link}`;
+      res.json({ data });
+    }
+  } catch (error) {
+    console.error('Error handling referral request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Endpoint to get referral link and refer a new user
-app.post('/referral-link', (req, res) => {
-  const { referrer } = req.body;
+app.get('/referral-link', (req, res) => {
+  try {
+    const username = req.query.username;
+    const code = req.query.code;
 
-  if (!wallets[referrer]) {
-    return res.status(400).json({ error: 'Referrer wallet not found' });
+    // Read the referral data from the JSON file
+    const referralData = readReferralData();
+
+    // Check if the provided code exists in the links object
+    if (referralData.links && referralData.links[code]) {
+      const referrer = referralData.links[code];
+      const referredUser = username; // Assuming the provided username is the referred user
+
+      // Increment referred_total and rewards of the referrer
+      if (referralData.users && referralData.users[referrer]) {
+        referralData.users[referrer].referred_total++;
+        referralData.users[referrer].rewards++;
+      }
+
+      // Generate and write referral data for the referred user
+      referralData.users[referredUser] = {
+        link: generateReferralLink(),
+        referred_total: 0,
+        rewards: 0,
+        referred_by: referrer
+      };
+      referralData.links[referralData.users[referredUser].link] = username;
+
+      // Write the updated referral data to the file
+      writeReferralData(referralData);
+
+      res.json({ message: 'You have been succesfully referred!' });
+    } else {
+      // If the provided code is invalid, return an error response
+      res.json({ message: 'Invalid Referral Code!' });
+    }
+  } catch (error) {
+    console.error('Error handling referral link request:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const referralLink = `${referrals.link}${uuidv4()}`;
-
-  referrals.users.push({ referrer, link: referralLink });
-  referrals.referredUsers += 1;
-
-  res.json({ referralLink, referredUsers: referrals.referredUsers, totalRewards: referrals.totalRewards });
 });
+
+function readReferralData() {
+  try {
+    const data = fs.readFileSync(path.join(__dirname, 'data', 'referral.json'), 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    return { links: {}, users: {} };
+  }
+}
+
+// Function to write referral data to the JSON file
+async function writeReferralData(referralData) {
+  fs.writeFileSync(path.join(__dirname, 'data', 'referral.json'), JSON.stringify(referralData, null, 2));
+}
+
+// Function to generate a random referral link
+function generateReferralLink() {
+  // Generate a random alphanumeric string as the referral link
+  return Math.random().toString(36).substring(2, 10);
+}
 
 // Start the server
 app.listen(PORT, () => {

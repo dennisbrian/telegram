@@ -7,8 +7,13 @@ const token = 'YOUR_TELEGRAM_BOT_TOKEN';
 const bot = new TelegramBot(token, { polling: true });
 
 // Welcome message and main menu
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
+  const username = msg.from.first_name
+  if(match[1] != null){
+    registerReferral(chatId, username, match[1]);
+  }
+
   bot.sendMessage(chatId, 'Welcome! Choose an option:', {
     reply_markup: {
       keyboard: [['Free Dice', 'Buy Dice']],
@@ -19,6 +24,7 @@ bot.onText(/\/start/, (msg) => {
 
 // Handling user commands
 bot.on('message', (msg) => {
+  const username = msg.from.first_name;
   const chatId = msg.chat.id;
   const text = msg.text;
   const userId = msg.from.id;
@@ -45,7 +51,7 @@ bot.on('message', (msg) => {
       throwDice(chatId, true, userId); // true for paid dice
       break;
     case 'Referral':
-      showReferral(chatId);
+      showReferral(chatId, username);
       break;
     case 'Deposit':
       handleDeposit(chatId, userId);
@@ -157,12 +163,11 @@ async function throwDice(chatId, isPaid, userId) {
 }
 
 // Function to show referral info
-async function showReferral(chatId) {
+async function showReferral(chatId, username) {
   try {
-    const response = await axios.get(`${API_ENDPOINT}/referral`);
-    const referralData = response.data;
-
-    bot.sendMessage(chatId, `Referral Rules:\nLink: ${referralData.link}\nReferred Users: ${referralData.referredUsers}\nTotal Rewards: ${referralData.totalRewards}`, {
+    const response = await axios.get(`${API_ENDPOINT}/referral?username=` + username);
+    const referralData = response.data.data;
+    bot.sendMessage(chatId, `Referral Rules: Lorem ipsum dolor sit amet, ted limus dolor sit lorem\nLink: ${referralData.link}\nReferred Users: ${referralData.referred_total}\nTotal Rewards: ${referralData.rewards}`, {
       reply_markup: {
         keyboard: [['Home']],
         one_time_keyboard: true,
@@ -218,5 +223,21 @@ async function walletChosen(chatId, userId, walletAddress) {
     });
   } catch (error) {
     bot.sendMessage(chatId, 'Error choosing wallet. Please try again.');
+  }
+}
+
+async function registerReferral(chatId, username, referral_code) {
+  try {
+    const response = await axios.get(`${API_ENDPOINT}/referral-link?username=` + username + "&code="+ referral_code);
+    const message = response.data.message;
+    bot.sendMessage(chatId, message, {
+      reply_markup: {
+        keyboard: [['Home']],
+        one_time_keyboard: true,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    bot.sendMessage(chatId, 'Error fetching referral info. Please try again.');
   }
 }
