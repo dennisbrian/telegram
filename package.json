@@ -1,9 +1,12 @@
 {
   "dependencies": {
+    "@tonconnect/sdk": "^3.0.2",
     "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "fs": "^0.0.1-security",
     "node-telegram-bot-api": "^0.66.0",
+    "qrcode": "^1.5.3",
     "uuid": "^9.0.1"
   },
   "name": "telebot",
