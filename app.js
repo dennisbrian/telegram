@@ -13,20 +13,31 @@ require('./connect-wallet-menu');
 // Replace with your local API endpoint
 const API_ENDPOINT = 'http://localhost:3000';
 
-// Welcome message and main menu
-bot.onText(/\/start (.+)/, (msg, match) => {
-    const chatId = msg.chat.id;
-    const username = msg.from.first_name;
-    if (match[1] != null) {
-        registerReferral(chatId, username, match[1]);
-    }
-
+// Function to show the main menu
+function showMainMenu(chatId) {
     bot.sendMessage(chatId, 'Welcome! Choose an option:', {
         reply_markup: {
             keyboard: [['Free Dice', 'Buy Dice']],
             one_time_keyboard: true,
         },
     });
+}
+
+// Welcome message and main menu for /start
+bot.onText(/\/start (.+)?/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const username = msg.from.first_name;
+    if (match[1] != null) {
+        registerReferral(chatId, username, match[1]);
+    }
+
+    showMainMenu(chatId);
+});
+
+// Listen for 'Home' command
+bot.onText(/Home/, (msg) => {
+    const chatId = msg.chat.id;
+    showMainMenu(chatId);
 });
 
 // Handling user commands
@@ -64,8 +75,9 @@ bot.on('message', (msg) => {
             handleDeposit(chatId, userId);
             break;
         case 'Home':
+        case '/start':
         case 'Back':
-            home(chatId);
+            showMainMenu(chatId);
             break;
         default:
             if (text.split(':')[0] == 'Wallet') {
